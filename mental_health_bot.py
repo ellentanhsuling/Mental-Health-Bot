@@ -1,29 +1,46 @@
 import streamlit as st
-import torch.nn as nn
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
+import google.generativeai as genai
 
-# Load the pre-trained model and tokenizer
-model_name = "distilbert-base-uncased"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForSequenceClassification.from_pretrained(model_name)
+# Configure Gemini API
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+model = genai.GenerativeModel('gemini-pro')
+
+def get_bot_response(prompt):
+    response = model.generate_content(
+        f"""As a mental health support assistant, respond to: {prompt}
+        Remember to be empathetic and supportive while maintaining appropriate boundaries."""
+    )
+    return response.text
 
 # Set up the chatbot UI
-st.title("Mental Health Chatbot")
-st.subheader("Talk to us, we're here to help")
+st.title("Mental Health Support Bot")
+st.subheader("Let's have a supportive conversation")
 
-input_text_area = st.text_area("Enter your thoughts and feelings...")
-button = st.button("Submit")
+# Initialize chat history
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
 
-if button:
-    # Process user input
-    input_text = input_text_area.strip()
-    input_encoding = tokenizer.encode(input_text, return_tensors="pt")
-    outputs = model(input_encoding)
+# Display chat history
+for message in st.session_state.chat_history:
+    st.write(message)
 
-    # Get the predicted label (0: normal, 1: urgent help needed)
-    predicted_label = torch.argmax(outputs.logits).item()
+# Get user input
+user_input = st.text_input("Share what's on your mind...")
 
-    if predicted_label == 1:
-        st.warning("Urgent attention required! Please seek professional help or talk to someone you trust.")
-    else:
-        st.info("Thank you for sharing your thoughts. Remember, mental health is just as important as physical health.")
+if user_input:
+    # Add user message to chat history
+    st.session_state.chat_history.append(f"You: {user_input}")
+    
+    # Get bot response using Gemini API
+    bot_response = get_bot_response(user_input)
+    st.session_state.chat_history.append(f"Bot: {bot_response}")
+    
+    # Clear the input field
+    st.empty()
+
+# Add helpful resources
+st.sidebar.title("Support Resources")
+st.sidebar.write("24/7 Crisis Support:")
+st.sidebar.write("- National Crisis Hotline: 988")
+st.sidebar.write("- Crisis Text Line: Text HOME to 741741")
+st.sidebar.write("- Emergency: 911")
